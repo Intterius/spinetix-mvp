@@ -8,6 +8,7 @@ import {
   Slide,
   Zoom,
   GlobalStyles,
+  Slider,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { ChromePicker } from 'react-color';
@@ -16,6 +17,13 @@ import { FormControl, Select, MenuItem, InputLabel } from '@mui/material';
 interface BusinessHours {
   days: string;
   hours: string;
+}
+
+interface StyleType {
+  color: string;
+  animation: string;
+  fontFamily?: string;
+  fontSize?: number;
 }
 
 const StyledTextField = styled(TextField)({
@@ -48,18 +56,33 @@ const HoursScreen = () => {
   } | null>(null);
 
   const [colorEditType, setColorEditType] = useState<
-    'title' | 'hours' | 'days' | 'divider' | 'background' | null
+    'title' | 'hours' | 'days' | 'divider' | 'background' | 'container' | null
   >(null);
 
   const [styles, setStyles] = useState<{
-    title: { color: string; animation: string };
-    hours: { color: string; animation: string }[];
-    days: { color: string; animation: string }[];
-    divider: { color: string; animation: string };
+    title: StyleType;
+    hours: StyleType[];
+    days: StyleType[];
+    divider: Omit<StyleType, 'fontFamily' | 'fontSize'>;
   }>({
-    title: { color: '#FFFFFF', animation: 'none' },
-    hours: Array(3).fill({ color: '#FFFFFF', animation: 'none' }),
-    days: Array(3).fill({ color: '#4fd1c5', animation: 'none' }),
+    title: {
+      color: '#FFFFFF',
+      animation: 'none',
+      fontFamily: 'Arial',
+      fontSize: 64,
+    },
+    hours: Array(3).fill({
+      color: '#FFFFFF',
+      animation: 'none',
+      fontFamily: 'Arial',
+      fontSize: 36,
+    }),
+    days: Array(3).fill({
+      color: '#4fd1c5',
+      animation: 'none',
+      fontFamily: 'Arial',
+      fontSize: 24,
+    }),
     divider: { color: '#FFFFFF', animation: 'none' },
   });
 
@@ -138,6 +161,9 @@ const HoursScreen = () => {
   // Add state for file name
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
+  // Add new state for content width
+  const [contentWidth, setContentWidth] = useState(70); // 70 is the default percentage
+
   // Update the image upload handler
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -195,6 +221,9 @@ const HoursScreen = () => {
     field: 'days' | 'hours',
     value: string
   ) => {
+    // Add character limit check
+    if (value.length > 100) return;
+
     const newSchedule = [...schedule];
     newSchedule[index] = { ...newSchedule[index], [field]: value };
     setSchedule(newSchedule);
@@ -208,15 +237,22 @@ const HoursScreen = () => {
   };
 
   const handleStyleChange = (
-    property: 'color' | 'animation',
-    value: string,
+    property: 'color' | 'animation' | 'width' | 'fontFamily' | 'fontSize',
+    value: string | number,
     index?: number
   ) => {
     if (!colorEditType) return;
 
     if (colorEditType === 'background') {
       if (property === 'animation') {
-        setBackgroundAnimationType(value);
+        setBackgroundAnimationType(value as string);
+      }
+      return;
+    }
+
+    if (colorEditType === 'container') {
+      if (property === 'width') {
+        setContentWidth(value as number);
       }
       return;
     }
@@ -341,6 +377,7 @@ const HoursScreen = () => {
               animation: ${
                 styles.title.animation
               } ${animationDuration}ms ease-in-out forwards;
+              font-family: ${styles.title.fontFamily};
             }
 
             ${schedule
@@ -351,11 +388,13 @@ const HoursScreen = () => {
                 font-weight: 500;
                 fill: ${styles.hours[i].color};
                 animation: ${styles.hours[i].animation} ${animationDuration}ms ease-in-out forwards;
+                font-family: ${styles.hours[i].fontFamily};
               }
               .days-${i} { 
                 font-size: ${fontSizes.days};
                 fill: ${styles.days[i].color};
                 animation: ${styles.days[i].animation} ${animationDuration}ms ease-in-out forwards;
+                font-family: ${styles.days[i].fontFamily};
               }
             `
               )
@@ -443,6 +482,13 @@ const HoursScreen = () => {
     }
   };
 
+  // Update title change handling
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value.length > 100) return;
+    setTitle(value);
+  };
+
   return (
     <Box>
       <GlobalStyles
@@ -492,24 +538,39 @@ const HoursScreen = () => {
                   !isEditMode && backgroundAnimationType !== 'none'
                     ? `${backgroundAnimationType} ${backgroundAnimationDuration}ms infinite ease-in-out`
                     : 'none',
-                cursor: 'pointer',
-                '&:hover': { opacity: 0.9 },
+                cursor: isEditMode ? 'pointer' : 'default',
+                '&:hover': isEditMode
+                  ? {
+                      outline: '2px solid rgba(255, 255, 255, 0.5)',
+                      outlineOffset: '-2px',
+                    }
+                  : {},
               }}
             />
 
             {/* Content Container with blur */}
             <Box
+              className='content-container'
               sx={{
                 position: 'absolute',
                 top: 0,
                 right: 0,
-                width: '70%',
+                width: `${contentWidth}%`,
                 height: '100%',
                 background: 'rgba(0, 0, 0, 0.6)',
                 backdropFilter: 'blur(10px)',
                 display: 'flex',
                 alignItems: 'flex-end',
+                cursor: isEditMode ? 'pointer' : 'default',
+                transition: 'width 0.3s ease',
+                '&:hover': isEditMode
+                  ? {
+                      outline: '2px solid rgba(255, 255, 255, 0.5)',
+                      outlineOffset: '-2px',
+                    }
+                  : {},
               }}
+              onClick={() => setColorEditType('container')}
             >
               {/* Hours Content */}
               <Box
@@ -528,12 +589,21 @@ const HoursScreen = () => {
                           <StyledTextField
                             variant='standard'
                             value={title}
-                            onChange={(e) => setTitle(e.target.value)}
+                            onChange={handleTitleChange}
                             onKeyDown={(e) =>
                               e.key === 'Enter' && handleEndTitleEdit(e)
                             }
                             autoFocus
                             fullWidth
+                            inputProps={{
+                              style: {
+                                fontFamily: styles.title.fontFamily,
+                                fontSize: `${
+                                  styles.title.fontSize! * scaleFactor
+                                }px`,
+                              },
+                              maxLength: 100,
+                            }}
                             sx={{
                               fontSize: fontSizes.title,
                               fontWeight: 'bold',
@@ -558,7 +628,8 @@ const HoursScreen = () => {
                         >
                           <Typography
                             variant='h1'
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (isEditMode) {
                                 handleStartTitleEdit();
                                 handleTextFocus('title');
@@ -570,7 +641,15 @@ const HoursScreen = () => {
                               fontWeight: 'bold',
                               mb: 4,
                               cursor: isEditMode ? 'pointer' : 'default',
-                              '&:hover': isEditMode ? { opacity: 0.8 } : {},
+                              '&:hover': isEditMode
+                                ? {
+                                    outline:
+                                      '1px solid rgba(255, 255, 255, 0.5)',
+                                    outlineOffset: '4px',
+                                    borderRadius: '4px',
+                                  }
+                                : {},
+                              fontFamily: styles.title.fontFamily,
                             }}
                           >
                             {title}
@@ -580,12 +659,20 @@ const HoursScreen = () => {
                     })()}
 
                 <Divider
-                  onClick={() => setColorEditType('divider')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setColorEditType('divider');
+                  }}
                   sx={{
                     borderColor: styles.divider.color,
                     mb: 4,
-                    cursor: 'pointer',
-                    '&:hover': { opacity: 0.8 },
+                    cursor: isEditMode ? 'pointer' : 'default',
+                    '&:hover': isEditMode
+                      ? {
+                          outline: '1px solid rgba(255, 255, 255, 0.5)',
+                          outlineOffset: '4px',
+                        }
+                      : {},
                     borderWidth: '2px',
                     borderStyle: 'solid',
                   }}
@@ -618,6 +705,16 @@ const HoursScreen = () => {
                                     color: styles.hours[index].color,
                                   },
                                 }}
+                                inputProps={{
+                                  style: {
+                                    fontFamily: styles.hours[index].fontFamily,
+                                    fontSize: `${
+                                      styles.hours[index].fontSize! *
+                                      scaleFactor
+                                    }px`,
+                                  },
+                                  maxLength: 100,
+                                }}
                               />
                             </Component>
                           );
@@ -635,7 +732,8 @@ const HoursScreen = () => {
                               appear={true}
                             >
                               <Typography
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   if (isEditMode) {
                                     handleStartEdit(index, 'hours');
                                     handleTextFocus('hours');
@@ -646,7 +744,15 @@ const HoursScreen = () => {
                                   fontSize: fontSizes.hours,
                                   fontWeight: 500,
                                   cursor: isEditMode ? 'pointer' : 'default',
-                                  '&:hover': isEditMode ? { opacity: 0.8 } : {},
+                                  '&:hover': isEditMode
+                                    ? {
+                                        outline:
+                                          '1px solid rgba(255, 255, 255, 0.5)',
+                                        outlineOffset: '4px',
+                                        borderRadius: '4px',
+                                      }
+                                    : {},
+                                  fontFamily: styles.hours[index].fontFamily,
                                 }}
                               >
                                 {item.hours}
@@ -673,6 +779,15 @@ const HoursScreen = () => {
                                 }
                                 autoFocus
                                 fullWidth
+                                inputProps={{
+                                  style: {
+                                    fontFamily: styles.hours[index].fontFamily,
+                                    fontSize: `${
+                                      styles.days[index].fontSize! * scaleFactor
+                                    }px`,
+                                  },
+                                  maxLength: 100,
+                                }}
                                 sx={{
                                   fontSize: fontSizes.days,
                                   '& .MuiInput-root': {
@@ -696,7 +811,8 @@ const HoursScreen = () => {
                               appear={true}
                             >
                               <Typography
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   if (isEditMode) {
                                     handleStartEdit(index, 'days');
                                     handleTextFocus('days');
@@ -706,7 +822,15 @@ const HoursScreen = () => {
                                   color: styles.days[index].color,
                                   fontSize: fontSizes.days,
                                   cursor: isEditMode ? 'pointer' : 'default',
-                                  '&:hover': isEditMode ? { opacity: 0.8 } : {},
+                                  '&:hover': isEditMode
+                                    ? {
+                                        outline:
+                                          '1px solid rgba(255, 255, 255, 0.5)',
+                                        outlineOffset: '4px',
+                                        borderRadius: '4px',
+                                      }
+                                    : {},
+                                  fontFamily: styles.days[index].fontFamily,
                                 }}
                               >
                                 {item.days}
@@ -950,6 +1074,42 @@ const HoursScreen = () => {
                     </Select>
                   </FormControl>
                 </>
+              ) : colorEditType === 'container' ? (
+                <>
+                  <Typography sx={{ color: 'white', mb: 2 }}>
+                    Container Settings
+                  </Typography>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography sx={{ color: 'white', mb: 1 }}>
+                      Width (%)
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Slider
+                        value={contentWidth}
+                        onChange={(_, value) =>
+                          handleStyleChange('width', value as number)
+                        }
+                        min={30}
+                        max={100}
+                        valueLabelDisplay='auto'
+                        sx={{
+                          color: 'white',
+                          '& .MuiSlider-thumb': {
+                            '&:hover, &.Mui-focusVisible': {
+                              boxShadow: '0 0 0 8px rgba(255, 255, 255, 0.16)',
+                            },
+                          },
+                          '& .MuiSlider-rail': {
+                            opacity: 0.28,
+                          },
+                        }}
+                      />
+                      <Typography sx={{ color: 'white', minWidth: '40px' }}>
+                        {contentWidth}%
+                      </Typography>
+                    </Box>
+                  </Box>
+                </>
               ) : colorEditType ? (
                 <>
                   <Typography sx={{ color: 'white', mb: 1 }}>
@@ -1025,6 +1185,79 @@ const HoursScreen = () => {
                       </Select>
                     </FormControl>
                   </Box>
+
+                  {colorEditType &&
+                    ['title', 'hours', 'days'].includes(colorEditType) && (
+                      <>
+                        <FormControl fullWidth sx={{ mt: 2 }}>
+                          <Typography sx={{ color: 'white', mb: 1 }}>
+                            Font Size
+                          </Typography>
+                          <Slider
+                            value={Number(
+                              Array.isArray(styles[colorEditType]) &&
+                                colorEditType !== 'divider'
+                                ? styles[colorEditType][editing?.index ?? 0]
+                                    .fontSize ?? 64
+                                : (styles[colorEditType] as StyleType)
+                                    .fontSize ?? 64
+                            )}
+                            onChange={(_, value) =>
+                              handleStyleChange(
+                                'fontSize',
+                                Number(value),
+                                editing?.index
+                              )
+                            }
+                            min={6}
+                            max={64}
+                            valueLabelDisplay='auto'
+                            sx={{
+                              color: 'white',
+                              '& .MuiSlider-thumb': {
+                                '&:hover, &.Mui-focusVisible': {
+                                  boxShadow:
+                                    '0 0 0 8px rgba(255, 255, 255, 0.16)',
+                                },
+                              },
+                              '& .MuiSlider-rail': {
+                                opacity: 0.28,
+                              },
+                            }}
+                          />
+                        </FormControl>
+                        <FormControl fullWidth sx={{ mt: 2 }}>
+                          <InputLabel sx={{ color: 'white' }}>
+                            Font Family
+                          </InputLabel>
+                          <Select
+                            value={
+                              colorEditType !== 'divider' &&
+                              (Array.isArray(styles[colorEditType])
+                                ? styles[colorEditType][editing?.index ?? 0]
+                                    .fontFamily
+                                : styles[colorEditType].fontFamily)
+                            }
+                            onChange={(e) =>
+                              handleStyleChange(
+                                'fontFamily',
+                                e.target.value,
+                                editing?.index
+                              )
+                            }
+                            sx={{ color: 'white' }}
+                          >
+                            <MenuItem value='Arial'>Arial</MenuItem>
+                            <MenuItem value='Helvetica'>Helvetica</MenuItem>
+                            <MenuItem value='Times New Roman'>
+                              Times New Roman
+                            </MenuItem>
+                            <MenuItem value='Courier New'>Courier New</MenuItem>
+                            <MenuItem value='Verdana'>Verdana</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </>
+                    )}
                 </>
               ) : (
                 <Typography sx={{ color: 'white', opacity: 0.7 }}>
